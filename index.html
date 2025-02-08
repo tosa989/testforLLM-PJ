@@ -325,7 +325,8 @@
             return table;
         }
 
-        function createElementTable(elementData) {
+        // 1つ目の分析用の要素テーブル作成関数
+        function createInitialElementTable(elementData) {
             let table = '<table><tr><th>要素</th><th>値</th><th>CTR</th><th>CVR</th><th>サンプル数</th></tr>';
             
             // 表示する要素の順序を定義
@@ -351,6 +352,28 @@
                 }
             });
 
+            table += '</table>';
+            return table;
+        }
+
+        // 2つ目の分析（詳細分析）用の要素テーブル作成関数
+        function createDetailedElementTable(elementData) {
+            if (!elementData) return '<p>要素データがありません。</p>';
+            
+            let table = '<table><tr><th>要素</th><th>値</th><th>CTR</th><th>CVR</th><th>サンプル数</th></tr>';
+            
+            for (const [element, values] of Object.entries(elementData)) {
+                for (const [value, metrics] of Object.entries(values)) {
+                    table += `<tr>
+                        <td>${element}</td>
+                        <td>${value}</td>
+                        <td>${metrics.average_ctr || '-'}</td>
+                        <td>${metrics.average_cvr || '-'}</td>
+                        <td>${metrics.sample_count || 0}</td>
+                    </tr>`;
+                }
+            }
+            
             table += '</table>';
             return table;
         }
@@ -459,7 +482,7 @@
                 }
 
                 if (result.average_metrics_by_element) {
-                    document.getElementById('elementTable').innerHTML = createElementTable(result.average_metrics_by_element);
+                    document.getElementById('elementTable').innerHTML = createInitialElementTable(result.average_metrics_by_element);
                     document.getElementById('elementResult').style.display = 'block';
                 }
 
@@ -523,15 +546,18 @@
                 const resultDiv = document.getElementById('detailedAnalysisResult');
                 resultDiv.style.display = 'block';
 
-                // 各セクションの表示
+                // 各セクションの表示を修正
                 document.getElementById('copyAnalysisTable').innerHTML = 
-                    createCopyAnalysisTable(detailedResult.copy_analysis);
+                    createCopyAnalysisTable(detailedResult.analysis_results);
+                    
                 document.getElementById('elementAnalysisTable').innerHTML = 
-                    createElementTable(detailedResult.element_metrics);
+                    createDetailedElementTable(detailedResult.analysis_results?.element_metrics);
+                    
                 document.getElementById('elementComparisonTable').innerHTML = 
                     createElementComparisonTable(detailedResult.element_differences);
+                    
                 document.getElementById('patternAnalysis').innerHTML = 
-                    displayPatternAnalysis(detailedResult.pattern_analysis);
+                    `<div class="pattern-item">${detailedResult.pattern_analysis || ''}</div>`;
 
                 // ダウンロードボタンのイベントリスナーを設定
                 document.getElementById('downloadDetailedButton').onclick = () => {
@@ -547,19 +573,22 @@
             }
         });
 
-        // コピー分析結果の表示関数
+        // 詳細分析結果の表示関数を修正
         function createCopyAnalysisTable(copyAnalysis) {
+            // analysis_resultsオブジェクトから正しいデータを取得
+            const analysisData = copyAnalysis?.copy_analysis || {};
+            
             let html = '';
-            for (const [url, analysis] of Object.entries(copyAnalysis)) {
+            for (const [url, analysis] of Object.entries(analysisData)) {
                 html += `
                     <div class="copy-analysis-item">
                         <p><strong>画像URL:</strong> ${url}</p>
-                        <p><strong>メインコピー:</strong> ${analysis.mainCopy}</p>
-                        <p><strong>サブコピー:</strong> ${analysis.subCopy}</p>
-                        <p><strong>その他テキスト:</strong> ${analysis.otherText}</p>
-                        <p><strong>CTA:</strong> ${analysis.cta}</p>
-                        <p><strong>訴求分析:</strong> ${analysis.appealAnalysis}</p>
-                        <p><strong>心理的効果:</strong> ${analysis.psychologicalEffect}</p>
+                        <p><strong>メインコピー:</strong> ${analysis.mainCopy || ''}</p>
+                        <p><strong>サブコピー:</strong> ${analysis.subCopy || ''}</p>
+                        <p><strong>その他テキスト:</strong> ${analysis.otherText || ''}</p>
+                        <p><strong>CTA:</strong> ${analysis.cta || ''}</p>
+                        <p><strong>訴求分析:</strong> ${analysis.appealAnalysis || ''}</p>
+                        <p><strong>心理的効果:</strong> ${analysis.psychologicalEffect || ''}</p>
                     </div>
                 `;
             }
@@ -584,11 +613,6 @@
             
             table += '</table>';
             return table;
-        }
-
-        // パターン分析結果の表示関数
-        function displayPatternAnalysis(patternAnalysis) {
-            return `<div class="pattern-item">${patternAnalysis.replace(/\n/g, '<br>')}</div>`;
         }
     </script>
 </body>
