@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM*広告データ分析プロトタイプ</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        .download-button {
+            background-color: #2196F3;
+        }
+        .button:hover {
+            opacity: 0.9;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #matrixResult {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: none;
+        }
+        .loading {
+            text-align: center;
+            margin-top: 20px;
+            display: none;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        td {
+            vertical-align: top;
+        }
+        .metric-value {
+            margin-bottom: 5px;
+        }
+        .download-section {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .prompt-settings {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .prompt-input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .settings-toggle {
+            background-color: #6c757d;
+            margin-bottom: 10px;
+        }
+        #elementResult {
+            margin-top: 30px;
+            display: none;
+        }
+        #elementTable table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #elementTable th, #elementTable td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        #elementTable th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        #elementTable tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        #elementTable tr:hover {
+            background-color: #f5f5f5;
+        }
+        .file-inputs {
+            margin: 15px 0;
+        }
+        .file-inputs > div {
+            margin: 10px 0;
+        }
+        .file-inputs label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .analysis-section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .analysis-section h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .copy-analysis-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .copy-analysis-item strong {
+            color: #2196F3;
+        }
+        .pattern-item {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .pattern-item h4 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LLM*広告データ分析プロトタイプ</h1>
+        
+        <!-- プロンプト設定を上部に移動し、style="display: none"を削除 -->
+        <div class="prompt-settings">
+            <h3>プロンプト設定</h3>
+            <div>
+                <label for="keyword1">訴求全体の指定:</label>
+                <input type="text" id="keyword1" class="prompt-input" value="キーワード">
+            </div>
+            <div>
+                <label for="keyword2">テキスト訴求の解像度指定:</label>
+                <input type="text" id="keyword2" class="prompt-input" value="簡潔な4~8文字程度のキーワード">
+            </div>
+            <div>
+                <label for="keyword3">感情的要素訴求の解像度指定:</label>
+                <input type="text" id="keyword3" class="prompt-input" value="キーワード">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <input type="file" id="jsonFile" accept=".json" />
+        </div>
+        <button id="analyzeButton" class="button">分析開始</button>
+        <div id="loading" class="loading">
+            分析中です。大量のデータの場合、完了まで数分かかる場合があります...<br>
+            ブラウザを閉じずにお待ちください。
+        </div>
+        <div id="error" class="error"></div>
+
+        <!-- Matrix Results -->
+        <div id="matrixResult">
+            <h2>マトリックス分析結果</h2>
+            <div id="matrixTable"></div>
+        </div>
+
+        <!-- Element Results -->
+        <div id="elementResult">
+            <h2>画像要素分析結果</h2>
+            <div id="elementTable"></div>
+        </div>
+
+        <!-- Download Buttons -->
+        <div class="download-section">
+            <button id="downloadMatrixButton" class="button download-button" style="display: none;">
+                マトリックス分析結果をダウンロード
+            </button>
+            <button id="downloadElementButton" class="button download-button" style="display: none;">
+                画像要素分析結果をダウンロード
+            </button>
+            <button id="downloadFullButton" class="button download-button" style="display: none;">
+                全分析結果をダウンロード
+            </button>
+        </div>
+
+        <!-- 追加分析セクション -->
+        <div id="additionalAnalysis" style="display: none; margin-top: 40px; border-top: 2px solid #ddd; padding-top: 20px;">
+            <h2>詳細分析</h2>
+            
+            <!-- 上位データの分析 -->
+            <div class="form-group">
+                <h3>上位データの分析</h3>
+                <p>CTR上位10件のデータを詳細分析します</p>
+                <div class="file-inputs">
+                    <div>
+                        <label>上位データのJSON:</label>
+                        <input type="file" id="topPerformersFile" accept=".json" />
+                    </div>
+                    <div>
+                        <label>比較データのJSON:（上記DLした画像要素分析結果をInputしてください）</label>
+                        <input type="file" id="comparisonFile" accept=".json" />
+                    </div>
+                </div>
+                <button id="analyzeTopButton" class="button">詳細分析開始</button>
+            </div>
+
+            <div id="additionalLoading" class="loading" style="display: none;">
+                詳細分析中です。完了まで数分かかる場合があります...
+            </div>
+            <div id="additionalError" class="error"></div>
+        </div>
+
+        <!-- 詳細分析結果セクション -->
+        <div id="detailedAnalysisResult" style="display: none;">
+            <h2>詳細分析結果</h2>
+            
+            <!-- コピー分析結果 -->
+            <div class="analysis-section">
+                <h3>コピー分析</h3>
+                <div id="copyAnalysisTable"></div>
+            </div>
+
+            <!-- 要素分析結果 -->
+            <div class="analysis-section">
+                <h3>要素分析結果</h3>
+                <div id="elementAnalysisTable"></div>
+            </div>
+
+            <!-- 要素比較結果 -->
+            <div class="analysis-section">
+                <h3>要素比較分析</h3>
+                <div id="elementComparisonTable"></div>
+            </div>
+
+            <!-- パターン分析結果 -->
+            <div class="analysis-section">
+                <h3>パターン分析</h3>
+                <div id="patternAnalysis"></div>
+            </div>
+
+            <!-- 詳細分析ダウンロードボタン -->
+            <div class="download-section">
+                <button id="downloadDetailedButton" class="button download-button">
+                    詳細分析結果をダウンロード
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function createMatrixTable(matrixData) {
+            const uniqueEmotionAppeals = new Set();
+            Object.values(matrixData).forEach(emotions => {
+                Object.keys(emotions).forEach(emotion => uniqueEmotionAppeals.add(emotion));
+            });
+
+            let table = '<table><tr><th>テキスト訴求 \\ 感情訴求</th>';
+            uniqueEmotionAppeals.forEach(emotion => {
+                table += `<th>${emotion}</th>`;
+            });
+            table += '</tr>';
+
+            Object.entries(matrixData).forEach(([textAppeal, emotions]) => {
+                table += `<tr><td>${textAppeal}</td>`;
+                uniqueEmotionAppeals.forEach(emotion => {
+                    const data = emotions[emotion] || { average_ctr: '-', average_cvr: '-', sample_count: 0 };
+                    table += `<td>
+                        <div class="metric-value">CTR: ${data.average_ctr || '-'}</div>
+                        <div class="metric-value">CVR: ${data.average_cvr || '-'}</div>
+                        <div class="metric-value">サンプル数: ${data.sample_count || 0}</div>
+                    </td>`;
+                });
+                table += '</tr>';
+            });
+
+            table += '</table>';
+            return table;
+        }
+
+        function createElementTable(elementData) {
+            let table = '<table><tr><th>要素</th><th>値</th><th>CTR</th><th>CVR</th><th>サンプル数</th></tr>';
+            
+            // 表示する要素の順序を定義
+            const elementOrder = [
+                "メインカラー", "配色数", "背景タイプ", "画像タイプ", "テキスト含有量",
+                "コピー方向", "メインコピー文字数", "コピー配置", "コピーの色", 
+                "文字サイズ比率", "数値活用", "CTAの有無", "CTA配置", "CTA色",
+                "季節感", "広告タイプ", "No.1バッチ", "人物要素", "人物配置",
+                "年齢層", "服装"
+            ];
+
+            elementOrder.forEach(element => {
+                if (elementData[element]) {
+                    Object.entries(elementData[element]).forEach(([value, metrics]) => {
+                        table += `<tr>
+                            <td>${element}</td>
+                            <td>${value}</td>
+                            <td>${metrics.average_ctr}</td>
+                            <td>${metrics.average_cvr}</td>
+                            <td>${metrics.sample_count}</td>
+                        </tr>`;
+                    });
+                }
+            });
+
+            table += '</table>';
+            return table;
+        }
+
+        function downloadJson(data, filename) {
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+
+        document.getElementById('analyzeButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('jsonFile');
+            const loadingDiv = document.getElementById('loading');
+            const matrixDiv = document.getElementById('matrixResult');
+            const errorDiv = document.getElementById('error');
+            const button = document.getElementById('analyzeButton');
+            const downloadMatrixButton = document.getElementById('downloadMatrixButton');
+            const downloadElementButton = document.getElementById('downloadElementButton');
+            const downloadFullButton = document.getElementById('downloadFullButton');
+
+            if (!fileInput.files[0]) {
+                errorDiv.textContent = 'JSONファイルを選択してください。';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                const fileContent = await fileInput.files[0].text();
+                const jsonData = JSON.parse(fileContent);
+                
+                // デバッグ用にデータを確認
+                console.log('Uploading data:', jsonData);
+                
+                // jsonDataの形式を確認
+                if (!Array.isArray(jsonData)) {
+                    throw new Error('JSONデータは配列形式である必要があります');
+                }
+                
+                // CloudStorageUrlの存在確認
+                const hasValidUrls = jsonData.every(item => item.CloudStorageUrl);
+                if (!hasValidUrls) {
+                    throw new Error('一部のデータにCloudStorageUrlが含まれていません');
+                }
+
+                const keyword1 = document.getElementById('keyword1').value;
+                const keyword2 = document.getElementById('keyword2').value;
+                const keyword3 = document.getElementById('keyword3').value;
+
+                const requestData = {
+                    ads_data: jsonData,
+                    prompt_settings: {
+                        keyword1,
+                        keyword2,
+                        keyword3
+                    }
+                };
+
+                console.log('Sending request:', requestData);  // デバッグ用
+
+                button.disabled = true;
+                loadingDiv.style.display = 'block';
+                matrixDiv.style.display = 'none';
+                downloadMatrixButton.style.display = 'none';
+                downloadElementButton.style.display = 'none';
+                downloadFullButton.style.display = 'none';
+                errorDiv.style.display = 'none';
+
+                const response = await fetch('https://asia-northeast1-psychic-order-449009-r3.cloudfunctions.net/function-1', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData),
+                    signal: AbortSignal.timeout(600000)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+
+                // マトリックス結果の表示
+                if (result.matrix_metrics) {
+                    document.getElementById('matrixTable').innerHTML = createMatrixTable(result.matrix_metrics);
+                    matrixDiv.style.display = 'block';
+                    
+                    // ダウンロードボタンの設定
+                    downloadMatrixButton.style.display = 'block';
+                    downloadMatrixButton.onclick = () => downloadJson(result.matrix_metrics, 'matrix_metrics.json');
+                    
+                    downloadElementButton.style.display = 'block';
+                    downloadElementButton.onclick = () => downloadJson(result.average_metrics_by_element, 'element_metrics.json');
+                    
+                    downloadFullButton.style.display = 'block';
+                    downloadFullButton.onclick = () => downloadJson(result, 'full_analysis_results.json');
+
+                    // 追加分析セクションを表示
+                    document.getElementById('additionalAnalysis').style.display = 'block';
+                }
+
+                if (result.average_metrics_by_element) {
+                    document.getElementById('elementTable').innerHTML = createElementTable(result.average_metrics_by_element);
+                    document.getElementById('elementResult').style.display = 'block';
+                }
+
+            } catch (error) {
+                errorDiv.textContent = `エラーが発生しました: ${error.message}`;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+                button.disabled = false;
+            }
+        });
+
+        // 上位データ分析
+        document.getElementById('analyzeTopButton').addEventListener('click', async () => {
+            const topFile = document.getElementById('topPerformersFile');
+            const comparisonFile = document.getElementById('comparisonFile');
+            const loadingDiv = document.getElementById('additionalLoading');
+            const errorDiv = document.getElementById('additionalError');
+            const button = document.getElementById('analyzeTopButton');
+
+            if (!topFile.files[0] || !comparisonFile.files[0]) {
+                errorDiv.textContent = '両方のJSONファイルを選択してください。';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                button.disabled = true;
+                loadingDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+
+                // 両方のJSONファイルを読み込む
+                const adsData = JSON.parse(await topFile.files[0].text());
+                const comparisonData = JSON.parse(await comparisonFile.files[0].text());
+
+                // データの形式を確認
+                console.log('Sending data:', {
+                    ads_data: adsData,
+                    comparison_data: comparisonData
+                });
+
+                const response = await fetch('https://asia-northeast1-psychic-order-449009-r3.cloudfunctions.net/function-5', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ads_data: adsData,  // 画像データ
+                        comparison_data: comparisonData  // 比較用データ
+                    }),
+                    signal: AbortSignal.timeout(600000)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const detailedResult = await response.json();
+                
+                // 結果をHTMLで表示
+                const resultDiv = document.getElementById('detailedAnalysisResult');
+                resultDiv.style.display = 'block';
+
+                // 各セクションの表示
+                document.getElementById('copyAnalysisTable').innerHTML = 
+                    createCopyAnalysisTable(detailedResult.copy_analysis);
+                document.getElementById('elementAnalysisTable').innerHTML = 
+                    createElementTable(detailedResult.element_metrics);
+                document.getElementById('elementComparisonTable').innerHTML = 
+                    createElementComparisonTable(detailedResult.element_differences);
+                document.getElementById('patternAnalysis').innerHTML = 
+                    displayPatternAnalysis(detailedResult.pattern_analysis);
+
+                // ダウンロードボタンのイベントリスナーを設定
+                document.getElementById('downloadDetailedButton').onclick = () => {
+                    downloadJson(detailedResult, 'detailed_comparison_analysis.json');
+                };
+
+            } catch (error) {
+                errorDiv.textContent = `エラーが発生しました: ${error.message}`;
+                errorDiv.style.display = 'block';
+            } finally {
+                loadingDiv.style.display = 'none';
+                button.disabled = false;
+            }
+        });
+
+        // コピー分析結果の表示関数
+        function createCopyAnalysisTable(copyAnalysis) {
+            let html = '';
+            for (const [url, analysis] of Object.entries(copyAnalysis)) {
+                html += `
+                    <div class="copy-analysis-item">
+                        <p><strong>画像URL:</strong> ${url}</p>
+                        <p><strong>メインコピー:</strong> ${analysis.mainCopy}</p>
+                        <p><strong>サブコピー:</strong> ${analysis.subCopy}</p>
+                        <p><strong>その他テキスト:</strong> ${analysis.otherText}</p>
+                        <p><strong>CTA:</strong> ${analysis.cta}</p>
+                        <p><strong>訴求分析:</strong> ${analysis.appealAnalysis}</p>
+                        <p><strong>心理的効果:</strong> ${analysis.psychologicalEffect}</p>
+                    </div>
+                `;
+            }
+            return html;
+        }
+
+        // 要素比較結果の表示関数
+        function createElementComparisonTable(differences) {
+            let table = '<table><tr><th>要素</th><th>値</th><th>CTR差分</th><th>CVR差分</th><th>サンプル数(分析/比較)</th></tr>';
+            
+            for (const [category, data] of Object.entries(differences)) {
+                data.differences.forEach(diff => {
+                    table += `<tr>
+                        <td>${category}</td>
+                        <td>${diff.value}</td>
+                        <td>${diff.ctr_difference}</td>
+                        <td>${diff.cvr_difference}</td>
+                        <td>${diff.sample_counts.group1}/${diff.sample_counts.group2}</td>
+                    </tr>`;
+                });
+            }
+            
+            table += '</table>';
+            return table;
+        }
+
+        // パターン分析結果の表示関数
+        function displayPatternAnalysis(patternAnalysis) {
+            return `<div class="pattern-item">${patternAnalysis.replace(/\n/g, '<br>')}</div>`;
+        }
+    </script>
+</body>
+</html> 
